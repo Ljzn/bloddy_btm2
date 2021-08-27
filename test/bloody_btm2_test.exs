@@ -36,7 +36,24 @@ defmodule BloodyBtm2Test do
                vm_version: 1,
                code: <<1, 2, 3, 4>>
              }
-           }, "16c4265a8a90916434c2a904a90132c198c7ebf8512aa1ba4485455b0beff388"}
+           }, "16c4265a8a90916434c2a904a90132c198c7ebf8512aa1ba4485455b0beff388"},
+          {:original_output,
+           %{
+             source: %{
+               ref: <<4::64, 5::64, 6::64, 7::64>>,
+               value: %{
+                 asset_id: <<1::64, 1::64, 1::64, 1::64>>,
+                 amount: 10
+               },
+               position: 10
+             },
+             control_program: %{
+               vm_version: 1,
+               code: <<5, 5, 5, 5>>
+             },
+             state_data: [<<3, 4>>],
+             ordinal: 1
+           }, "63fbfda2cf0acc573f2a514ddff8ee64c33e713aebe4c85670507545c38841b2"}
         ] do
       assert BloodyBtm2.entry_id(type, data) |> Base.encode16(case: :lower) == eid
     end

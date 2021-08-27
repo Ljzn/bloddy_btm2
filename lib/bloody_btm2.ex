@@ -1,6 +1,7 @@
 defmodule BloodyBtm2 do
   alias BloodyBtm2.Serializer, as: Se
 
+  # TODO simplify
   def encode_block(b) when is_map(b) do
     b.serflag <>
       Se.put_uvarint(b.version) <>
@@ -244,8 +245,8 @@ defmodule BloodyBtm2 do
 
   defp get_typ(:issuance), do: "issuance1"
   defp get_typ(:mux), do: "mux1"
+  defp get_typ(:original_output), do: "originalOutput1"
 
-  # TODO simplify
   def write_for_hash(:integer, n), do: <<n::size(64)-little>>
   def write_for_hash(:string, str), do: Se.put_ext_string(str)
   def write_for_hash(:hash, data), do: data
@@ -282,6 +283,13 @@ defmodule BloodyBtm2 do
           [
             vm_version: :integer,
             code: :string
+          ]
+
+        :original_output ->
+          [
+            source: :value_source,
+            control_program: :program,
+            state_data: [:string]
           ]
       end
 
