@@ -13,6 +13,9 @@ defmodule BloodyBtm2 do
       encode_list(b.txs, &encode_tx/1)
   end
 
+  @doc """
+  Decode a binary format raw block.
+  """
   def decode_block(binary) when is_binary(binary) do
     <<serflag::binary-size(1), binary::binary>> = binary
     {version, binary} = Se.get_uvarint(binary)
@@ -64,6 +67,9 @@ defmodule BloodyBtm2 do
       encode_list(t.outputs, &encode_output/1)
   end
 
+  @doc """
+  Decode a binary format raw tx.
+  """
   def decode_tx(binary) do
     <<7, binary::binary>> = binary
     {version, binary} = Se.get_uvarint(binary)
@@ -228,5 +234,23 @@ defmodule BloodyBtm2 do
        control_program: control_program,
        state_data: state_data
      }, binary}
+  end
+
+  def entry_id(type, data) do
+    innerhash = :keccakf1600.sha3_256(write_for_hash(type, data))
+    update = <<"entryid:">> <> get_typ(type) <> <<":">> <> innerhash
+    :keccakf1600.sha3_256(update)
+  end
+
+  defp get_typ(:issuance), do: "issuance1"
+  defp get_typ(:mux), do: "mux1"
+
+  def write_for_hash(:issuance, data) do
+    data.nonce_hash <> data.value.asset_id <> <<data.value.amount::size(64)-little>>
+  end
+
+  def write_for_hash(:mux, data) do
+    # TODO
+    <<>>
   end
 end

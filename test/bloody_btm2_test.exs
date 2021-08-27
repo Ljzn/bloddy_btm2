@@ -8,4 +8,21 @@ defmodule BloodyBtm2Test do
 
     assert BloodyBtm2.decode_block(raw) |> elem(0) |> BloodyBtm2.encode_block() == raw
   end
+
+  test "entry id" do
+    for {type, data, eid} <- [
+          {:issuance,
+           %{
+             nonce_hash: <<0::64, 1::64, 2::64, 3::64>>,
+             value: %{
+               asset_id: <<1::64, 2::64, 3::64, 4::64>>,
+               amount: 100
+             },
+             ordinal: 1
+           }, "3012b9b6da3962bb2388cdf5db7f3b93a2b696fcc70e79bc5da1238a6d66ae73"},
+          {:mux, %{}, "16c4265a8a90916434c2a904a90132c198c7ebf8512aa1ba4485455b0beff388"}
+        ] do
+      assert BloodyBtm2.entry_id(type, data) |> Base.encode16(case: :lower) == eid
+    end
+  end
 end

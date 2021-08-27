@@ -21,7 +21,6 @@ defmodule BloodyBtm2.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:binary, "~> 0.0.5"},
       {:keccakf1600, "~> 2.0.0"},
       {:ed25519, git: "https://github.com/peatio/ed25519", tag: "v1.2.0"}
       # {:dep_from_hexpm, "~> 0.3.0"},
