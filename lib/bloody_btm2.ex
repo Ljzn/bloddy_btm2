@@ -245,12 +245,57 @@ defmodule BloodyBtm2 do
   defp get_typ(:issuance), do: "issuance1"
   defp get_typ(:mux), do: "mux1"
 
-  def write_for_hash(:issuance, data) do
-    data.nonce_hash <> data.value.asset_id <> <<data.value.amount::size(64)-little>>
+  # TODO simplify
+  def write_for_hash(:integer, n), do: <<n::size(64)-little>>
+  def write_for_hash(:string, str), do: Se.put_ext_string(str)
+  def write_for_hash(:hash, data), do: data
+
+  def write_for_hash(type, data) do
+    specs =
+      case type do
+        :issuance ->
+          [
+            nonce_hash: :hash,
+            value: :asset_amount
+          ]
+
+        :asset_amount ->
+          [
+            asset_id: :hash,
+            amount: :integer
+          ]
+
+        :mux ->
+          [
+            sources: [:value_source],
+            program: :program
+          ]
+
+        :value_source ->
+          [
+            ref: :hash,
+            value: :asset_amount,
+            position: :integer
+          ]
+
+        :program ->
+          [
+            vm_version: :integer,
+            code: :string
+          ]
+      end
+
+    specs
+    |> Enum.map_join(fn
+      {key, [t]} ->
+        write_for_hash(:list, t, data[key])
+
+      {key, t} ->
+        write_for_hash(t, data[key])
+    end)
   end
 
-  def write_for_hash(:mux, data) do
-    # TODO
-    <<>>
+  def write_for_hash(:list, type, data) do
+    Se.put_uvarint(length(data)) <> Enum.map_join(data, &write_for_hash(type, &1))
   end
 end
