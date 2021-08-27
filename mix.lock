@@ -1,0 +1,5 @@
+%{
+  "binary": {:hex, :binary, "0.0.5", "20d816f7274ea34f1b673b4cff2fdb9ebec9391a7a68c349070d515c66b1b2cf", [:mix], [], "hexpm", "ee1e9ebcab703a4e24db554957fbb540642fe9327eb9e295cb3f07dd7c11ddb2"},
+  "ed25519": {:git, "https://github.com/peatio/ed25519", "a148e0f12373755380c3ca8627cd63dc672de809", [tag: "v1.2.0"]},
+  "keccakf1600": {:hex, :keccakf1600, "2.0.0", "69d02d844a101bf3c75484c9e334fd04b0f57280727e881cac3bd8240432f43a", [:rebar3], [], "hexpm", "bf381475f5d1daf1df2f46bf24d1d4b91debb638b5a6b014cdce40e32eee8f07"},
+}
