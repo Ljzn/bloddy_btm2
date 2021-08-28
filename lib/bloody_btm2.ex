@@ -326,4 +326,8 @@ defmodule BloodyBtm2 do
   def write_for_hash(:list, type, data) do
     Se.put_uvarint(length(data)) <> Enum.map_join(data, &write_for_hash(type, &1))
   end
+
+  def sig_hash(tx, n) do
+    :keccakf1600.sha3_256((tx.input_ids |> Enum.at(n)) <> tx.id)
+  end
 end
