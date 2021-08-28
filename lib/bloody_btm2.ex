@@ -246,6 +246,9 @@ defmodule BloodyBtm2 do
   defp get_typ(:issuance), do: "issuance1"
   defp get_typ(:mux), do: "mux1"
   defp get_typ(:original_output), do: "originalOutput1"
+  defp get_typ(:retirement), do: "retirement1"
+  defp get_typ(:spend), do: "spend1"
+  defp get_typ(:tx_header), do: "txheader"
 
   def write_for_hash(:integer, n), do: <<n::size(64)-little>>
   def write_for_hash(:string, str), do: Se.put_ext_string(str)
@@ -290,6 +293,23 @@ defmodule BloodyBtm2 do
             source: :value_source,
             control_program: :program,
             state_data: [:string]
+          ]
+
+        :retirement ->
+          [
+            source: :value_source
+          ]
+
+        :spend ->
+          [
+            spent_output_id: :hash
+          ]
+
+        :tx_header ->
+          [
+            version: :integer,
+            time_range: :integer,
+            result_ids: [:hash]
           ]
       end
 
