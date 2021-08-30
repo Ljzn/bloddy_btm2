@@ -8,6 +8,9 @@ defmodule BloodyBtm2 do
 
   @original_output_type <<0>>
 
+  def btm_asset_id,
+    do: <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF::256>>
+
   def input_type(type) do
     case type do
       @issuance_input_type ->
@@ -407,6 +410,7 @@ defmodule BloodyBtm2 do
     }
 
     %{
+      _type: :original_output,
       asset_version: 1,
       output_type: @original_output_type,
       commitment: commitment,
@@ -414,13 +418,34 @@ defmodule BloodyBtm2 do
     }
   end
 
+  def mux(sources, program) do
+    %{
+      _type: :mux,
+      sources: sources,
+      program: program
+    }
+  end
+
   def map_tx(tx) do
-    entries = Enum.map(Enum.with_index(tx.inputs), fn {input, i} -> map_input(input, i) end)
+    input_entries = Enum.map(Enum.with_index(tx.inputs), fn {input, i} -> map_input(input, i) end)
+    input_ids = input_entries |> Enum.map(fn list -> hd(list) |> elem(0) end)
+
+    mux = init_mux(tx, input_ids)
+    mux_id = entry_id(mux)
+    # TODO set destination
+
+    output_entries =
+      Enum.map(Enum.with_index(tx.outputs), fn {out, i} -> map_output(out, i, mux_id) end)
+
+    result_ids = output_entries |> Enum.map(fn list -> hd(list) |> elem(0) end)
+
+    # TODO mux witness destination
 
     %{
-      input_ids: entries |> Enum.map(fn list -> hd(list) |> elem(0) end),
-      result_ids: tx.outputs,
-      entries: entries |> List.flatten() |> Enum.into(%{})
+      input_ids: input_ids,
+      result_ids: result_ids,
+      entries:
+        (input_entries ++ output_entries ++ [{mux_id, mux}]) |> List.flatten() |> Enum.into(%{})
     }
   end
 
@@ -447,6 +472,52 @@ defmodule BloodyBtm2 do
     end
   end
 
+  defp asset_amount(%{commitment: %{amount: amount, asset_id: asset_id}}),
+    do: %{amount: amount, asset_id: asset_id}
+
+  defp init_mux(tx, input_ids) do
+    mux_sources =
+      Enum.zip(tx.inputs, input_ids)
+      |> Enum.map(fn {input, id} ->
+        if input._type != :coinbase do
+          %{
+            ref: id,
+            value: asset_amount(input),
+            position: 0
+          }
+        else
+          %{
+            ref: id,
+            value: %{
+              asset_id: btm_asset_id(),
+              amount: Enum.map(tx.outputs, fn out -> out.commitment.amount end) |> Enum.sum()
+            },
+            position: 0
+          }
+        end
+      end)
+
+    mux(mux_sources, %{vm_version: 1, code: <<op_true()>>})
+  end
+
+  defp map_output(out, i, mux_id) do
+    src = %{ref: mux_id, value: asset_amount(out), position: i}
+
+    prog = %{
+      vm_version: out.commitment.vm_version,
+      code: out.commitment.control_program
+    }
+
+    case out._type do
+      :original_output ->
+        o = original_output(src, prog, out.commitment.state_data, i)
+
+        [
+          {entry_id(o), o}
+        ]
+    end
+  end
+
   def original_output(source, control_program, state_data, ordinal) do
     %{
       source: source,
@@ -465,11 +536,5 @@ defmodule BloodyBtm2 do
     }
   end
 
-  # defp map_spend_input(mh, input, i) do
-
-  #   spend = spend(prevout_id, i)
-  #   spend = Map.put(:witness_arguments, input.witness)
-
-  #   mh = Map.put(mh, :spends, mh.spends ++ [spend])
-  # end
+  def op_true, do: 0x51
 end
