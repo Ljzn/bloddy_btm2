@@ -116,7 +116,7 @@ defmodule BloodyBtm2Test do
   end
 
   test "transaction" do
-    for {tx, hex, hash} <- [
+    for {_tx, hex, hash} <- [
           {
             %{
               version: 1,
@@ -129,7 +129,12 @@ defmodule BloodyBtm2Test do
           }
         ] do
       raw_tx = Base.decode16!(hex, case: :lower)
-      assert decode_tx(raw_tx) |> elem(0) |> encode_tx() == raw_tx
+      decoded = decode_tx(raw_tx) |> elem(0)
+
+      assert decoded |> encode_tx() == raw_tx
+
+      new_tx = map_tx(decoded) |> generate_tx()
+      assert new_tx.id == Base.decode16!(hash, case: :lower)
     end
   end
 

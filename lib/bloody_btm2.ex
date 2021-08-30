@@ -116,7 +116,8 @@ defmodule BloodyBtm2 do
        version: version,
        time_range: time_range,
        inputs: inputs,
-       outputs: outputs
+       outputs: outputs,
+       serialized_size: byte_size(binary)
      }, binary}
   end
 
@@ -426,6 +427,16 @@ defmodule BloodyBtm2 do
     }
   end
 
+  def tx_header(version, serialized_size, time_range, result_ids) do
+    %{
+      _type: :tx_header,
+      version: version,
+      serialized_size: serialized_size,
+      time_range: time_range,
+      result_ids: result_ids
+    }
+  end
+
   def map_tx(tx) do
     input_entries = Enum.map(Enum.with_index(tx.inputs), fn {input, i} -> map_input(input, i) end)
     input_ids = input_entries |> Enum.map(fn list -> hd(list) |> elem(0) end)
@@ -442,10 +453,31 @@ defmodule BloodyBtm2 do
     # TODO mux witness destination
 
     %{
+      tx_data: tx,
       input_ids: input_ids,
       result_ids: result_ids,
       entries:
         (input_entries ++ output_entries ++ [{mux_id, mux}]) |> List.flatten() |> Enum.into(%{})
+    }
+  end
+
+  def generate_tx(mh) do
+    header =
+      tx_header(
+        mh.tx_data.version,
+        mh.tx_data.serialized_size,
+        mh.tx_data.time_range,
+        mh.result_ids
+      )
+
+    id = entry_id(header)
+
+    %{
+      tx_header: header,
+      id: id,
+      entries: Map.put(mh.entries, id, header),
+      input_ids: mh.input_ids,
+      spent_output_ids: ["TODO"]
     }
   end
 
