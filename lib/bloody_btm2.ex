@@ -1,6 +1,10 @@
 defmodule BloodyBtm2 do
   alias BloodyBtm2.Serializer, as: Se
 
+  @spend_input_type <<1>>
+
+  @original_output_type <<0>>
+
   # TODO simplify
   def encode_block(b) when is_map(b) do
     b.serflag <>
@@ -63,7 +67,7 @@ defmodule BloodyBtm2 do
   def encode_tx(t) do
     <<7>> <>
       Se.put_uvarint(t.version) <>
-      Se.put_uvarint(t.time_range) <>
+      Se.put_uvarint(t.time_range || 0) <>
       encode_list(t.inputs, &encode_input/1) <>
       encode_list(t.outputs, &encode_output/1)
   end
@@ -111,7 +115,7 @@ defmodule BloodyBtm2 do
     }
   end
 
-  def encode_input_commitment(i = %{input_type: <<1>>}) do
+  def encode_input_commitment(i = %{input_type: @spend_input_type}) do
     i.input_type <>
       ((i.source_id <>
           i.asset_id <>
@@ -119,7 +123,7 @@ defmodule BloodyBtm2 do
           Se.put_uvarint(i.source_position) <>
           Se.put_uvarint(i.vm_version) <>
           Se.put_ext_string(i.control_program) <>
-          Se.put_ext_string(i.state_data))
+          encode_list(i.state_data, &Se.put_ext_string/1))
        |> Se.put_ext_string())
   end
 
@@ -146,7 +150,7 @@ defmodule BloodyBtm2 do
 
     {vm_version, binary} = Se.get_uvarint(binary)
     {control_program, binary} = Se.get_ext_string(binary)
-    {state_data, binary} = Se.get_ext_string(binary)
+    {state_data, binary} = decode_list(binary, &Se.get_ext_string/1)
 
     {%{
        input_type: input_type,
@@ -217,7 +221,7 @@ defmodule BloodyBtm2 do
       Se.put_uvarint(c.amount) <>
       Se.put_uvarint(c.vm_version) <>
       Se.put_ext_string(c.control_program) <>
-      Se.put_ext_string(c.state_data)
+      encode_list(c.state_data, &Se.put_ext_string/1)
   end
 
   def decode_output_commitment(binary) do
@@ -226,7 +230,7 @@ defmodule BloodyBtm2 do
 
     {vm_version, binary} = Se.get_uvarint(binary)
     {control_program, binary} = Se.get_ext_string(binary)
-    {state_data, binary} = Se.get_ext_string(binary)
+    {state_data, binary} = decode_list(binary, &Se.get_ext_string/1)
 
     {%{
        amount: amount,
@@ -237,6 +241,9 @@ defmodule BloodyBtm2 do
      }, binary}
   end
 
+  @doc """
+  Get entry id.
+  """
   def entry_id(type, data) do
     innerhash = :keccakf1600.sha3_256(write_for_hash(type, data))
     update = <<"entryid:">> <> get_typ(type) <> <<":">> <> innerhash
@@ -329,5 +336,55 @@ defmodule BloodyBtm2 do
 
   def sig_hash(tx, n) do
     :keccakf1600.sha3_256((tx.input_ids |> Enum.at(n)) <> tx.id)
+  end
+
+  def spend_input(
+        arguments,
+        source_id,
+        asset_id,
+        amount,
+        source_position,
+        control_program,
+        state_data
+      ) do
+    commitment = %{
+      input_type: @spend_input_type,
+      source_id: source_id,
+      asset_id: asset_id,
+      amount: amount,
+      source_position: source_position,
+      vm_version: 1,
+      control_program: control_program,
+      state_data: state_data
+    }
+
+    %{
+      asset_version: 1,
+      commitment: commitment,
+      witness: arguments
+    }
+  end
+
+  def original_tx_output(asset_id, amount, control_program, state_data) do
+    commitment = %{
+      amount: amount,
+      asset_id: asset_id,
+      vm_version: 1,
+      control_program: control_program,
+      state_data: state_data
+    }
+
+    %{
+      asset_version: 1,
+      output_type: @original_output_type,
+      commitment: commitment,
+      witness: []
+    }
+  end
+
+  def map_tx(tx) do
+    %{
+      result_ids: tx.outputs
+    }
   end
 end

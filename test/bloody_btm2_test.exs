@@ -1,12 +1,16 @@
 defmodule BloodyBtm2Test do
   use ExUnit.Case
+  import BloodyBtm2
+
+  def btm_asset_id,
+    do: <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF::256>>
 
   test "decode encode block" do
     raw =
       "03019d8c03a9e61f90cb74420dde678dcf9141a6600a7957443196202874073edf205f9121a09e86b1b72f202cd226b1efc0a74dbaffb7d3540c4cf34de969d66254aa95c3a2c5b63551f4c041400077faa364d9e5e9cbe7d8b5bd88f03e0f45970cc93d5af16075a133cbc7d8353b67f99d32d54bb2ac13f4d639d05acf626130a3dcacac8dd4ecf42fcddecf0b0100020701000101080206003530373137000101003affffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0001160014e31277f2d1c9f5e8953637fd892e4ee38346cda0000007019bbb1d010161015faa6a3ef0bfbfac5ed2d572c569d58258c43ffcd6811c9a4067170f47216d4c6affffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc8adcfc6070101160014ae2c6bf48714cf0d00d77b907688ca140a6c211b006302404dda6f3535416bfef3b19aeab1e4abcda646dea9cfd48364f8f222df3ba645594415bf27bc44e7622bb0d0f13373c991653896cd2d80166dbaa30f25e0ef3a05207ce0e481489298fece45aa5f02b639f20234cf5b4d9ce532b4a2248eb707f7ed0201003effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80cab5ee01011600144fd437bd1f2e98b8079661ace2862f59489c3739000001003effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0affed70501160014ae2c6bf48714cf0d00d77b907688ca140a6c211b0000"
       |> Base.decode16!(case: :lower)
 
-    assert BloodyBtm2.decode_block(raw) |> elem(0) |> BloodyBtm2.encode_block() == raw
+    assert decode_block(raw) |> elem(0) |> encode_block() == raw
   end
 
   test "entry id" do
@@ -79,7 +83,7 @@ defmodule BloodyBtm2Test do
              result_ids: [<<4::64, 5::64, 6::64, 7::64>>]
            }, "ba592aa0841bd4649d9a04309e2e8497ac6f295a847cadd9de6b6f9c2d806663"}
         ] do
-      assert BloodyBtm2.entry_id(type, data) |> Base.encode16(case: :lower) == eid
+      assert entry_id(type, data) |> Base.encode16(case: :lower) == eid
     end
   end
 
@@ -110,7 +114,49 @@ defmodule BloodyBtm2Test do
             "f650ba3a58f90d3a2215f6c50a692a86c621b7968bb2a059a4c8e0c819770430"
           }
         ] do
-      assert BloodyBtm2.sig_hash(tx, 0) |> Base.encode16(case: :lower) == sig_hash
+      assert sig_hash(tx, 0) |> Base.encode16(case: :lower) == sig_hash
+    end
+  end
+
+  test "transaction" do
+    for {tx, hex, hash} <- [
+          {
+            %{
+              version: 1,
+              serialized_size: 5,
+              inputs: [],
+              outputs: []
+            },
+            "0701000000",
+            "8e88b9cb4615128c7209dff695f68b8de5b38648bf3d44d2d0e6a674848539c9"
+          }
+        ] do
+      raw_tx = Base.decode16!(hex, case: :lower)
+      assert decode_tx(raw_tx) |> elem(0) |> encode_tx() == raw_tx
+    end
+  end
+
+  test "map_tx" do
+    for tx_data <- [
+          %{
+            inputs: [
+              spend_input(
+                nil,
+                "fad5195a0c8e3b590b86a3c0a95e7529565888508aecca96e9aeda633002f409",
+                btm_asset_id(),
+                88,
+                3,
+                <<1>>,
+                [<<2>>]
+              )
+            ],
+            outputs: [
+              original_tx_output(btm_asset_id(), 80, <<1>>, [<<2>>])
+            ]
+          }
+        ] do
+      tx = map_tx(tx_data)
+      assert length(tx.result_ids) == length(tx_data.outputs)
     end
   end
 end
