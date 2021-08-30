@@ -157,6 +157,17 @@ defmodule BloodyBtm2Test do
         ] do
       tx = map_tx(tx_data)
       assert length(tx.result_ids) == length(tx_data.outputs)
+
+      for {old_input, id} <- Enum.zip(tx_data.inputs, tx.input_ids) do
+        new_input = tx.entries[id]
+
+        case new_input._type do
+          :spend ->
+            spend_out = tx.entries[new_input.spent_output_id]
+            assert spend_out.source.value.asset_id == old_input.commitment.asset_id
+            assert spend_out.source.value.amount == old_input.commitment.amount
+        end
+      end
     end
   end
 end

@@ -1,9 +1,35 @@
 defmodule BloodyBtm2 do
   alias BloodyBtm2.Serializer, as: Se
 
+  @issuance_input_type <<0>>
   @spend_input_type <<1>>
+  @veto_input_type <<2>>
+  @coinbase_input_type <<3>>
 
   @original_output_type <<0>>
+
+  def input_type(type) do
+    case type do
+      @issuance_input_type ->
+        :issuance
+
+      @spend_input_type ->
+        :spend
+
+      @veto_input_type ->
+        :veto
+
+      @coinbase_input_type ->
+        :coinbase
+    end
+  end
+
+  def output_type(type) do
+    case type do
+      @original_output_type ->
+        :original_output
+    end
+  end
 
   # TODO simplify
   def encode_block(b) when is_map(b) do
@@ -109,7 +135,8 @@ defmodule BloodyBtm2 do
       %{
         asset_version: asset_version,
         commitment: commitment,
-        witness: witness
+        witness: witness,
+        _type: input_type(commitment.input_type)
       },
       binary
     }
@@ -210,7 +237,8 @@ defmodule BloodyBtm2 do
         asset_version: asset_version,
         output_type: output_type,
         commitment: commitment,
-        witness: witness
+        witness: witness,
+        _type: output_type(output_type)
       },
       binary
     }
@@ -244,6 +272,8 @@ defmodule BloodyBtm2 do
   @doc """
   Get entry id.
   """
+  def entry_id(%{_type: type} = data), do: entry_id(type, data)
+
   def entry_id(type, data) do
     innerhash = :keccakf1600.sha3_256(write_for_hash(type, data))
     update = <<"entryid:">> <> get_typ(type) <> <<":">> <> innerhash
@@ -334,6 +364,7 @@ defmodule BloodyBtm2 do
     Se.put_uvarint(length(data)) <> Enum.map_join(data, &write_for_hash(type, &1))
   end
 
+  @spec sig_hash(atom | %{:id => binary, :input_ids => any, optional(any) => any}, integer) :: any
   def sig_hash(tx, n) do
     :keccakf1600.sha3_256((tx.input_ids |> Enum.at(n)) <> tx.id)
   end
@@ -361,7 +392,8 @@ defmodule BloodyBtm2 do
     %{
       asset_version: 1,
       commitment: commitment,
-      witness: arguments
+      witness: arguments,
+      _type: :spend
     }
   end
 
@@ -383,8 +415,61 @@ defmodule BloodyBtm2 do
   end
 
   def map_tx(tx) do
+    entries = Enum.map(Enum.with_index(tx.inputs), fn {input, i} -> map_input(input, i) end)
+
     %{
-      result_ids: tx.outputs
+      input_ids: entries |> Enum.map(fn list -> hd(list) |> elem(0) end),
+      result_ids: tx.outputs,
+      entries: entries |> List.flatten() |> Enum.into(%{})
     }
   end
+
+  defp map_input(input, i) do
+    case input._type do
+      :spend ->
+        prog = %{vm_version: input.commitment.vm_version, code: input.commitment.control_program}
+
+        prevout =
+          %{
+            ref: input.commitment.source_id,
+            value: %{asset_id: input.commitment.asset_id, amount: input.commitment.amount},
+            position: input.commitment.source_position
+          }
+          |> original_output(prog, input.commitment.state_data, 0)
+
+        prevout_id = prevout |> entry_id()
+        spend = spend(prevout_id, i)
+
+        [
+          {entry_id(spend), spend},
+          {prevout_id, prevout}
+        ]
+    end
+  end
+
+  def original_output(source, control_program, state_data, ordinal) do
+    %{
+      source: source,
+      control_program: control_program,
+      state_data: state_data,
+      ordinal: ordinal,
+      _type: :original_output
+    }
+  end
+
+  def spend(spent_output_id, ordinal) do
+    %{
+      _type: :spend,
+      spent_output_id: spent_output_id,
+      ordinal: ordinal
+    }
+  end
+
+  # defp map_spend_input(mh, input, i) do
+
+  #   spend = spend(prevout_id, i)
+  #   spend = Map.put(:witness_arguments, input.witness)
+
+  #   mh = Map.put(mh, :spends, mh.spends ++ [spend])
+  # end
 end
