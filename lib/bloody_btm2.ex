@@ -368,9 +368,10 @@ defmodule BloodyBtm2 do
     Se.put_uvarint(length(data)) <> Enum.map_join(data, &write_for_hash(type, &1))
   end
 
-  @spec sig_hash(atom | %{:id => binary, :input_ids => any, optional(any) => any}, integer) :: any
-  def sig_hash(tx, n) do
-    :keccakf1600.sha3_256((tx.input_ids |> Enum.at(n)) <> tx.id)
+  def sig_hashes(tx) do
+    Enum.map(tx.input_ids, fn input_id ->
+      :keccakf1600.sha3_256(input_id <> tx.id)
+    end)
   end
 
   def spend_input(

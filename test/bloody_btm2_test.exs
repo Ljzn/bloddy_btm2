@@ -111,7 +111,7 @@ defmodule BloodyBtm2Test do
             "f650ba3a58f90d3a2215f6c50a692a86c621b7968bb2a059a4c8e0c819770430"
           }
         ] do
-      assert sig_hash(tx, 0) |> Base.encode16(case: :lower) == sig_hash
+      assert sig_hashes(tx) |> Enum.at(0) |> Base.encode16(case: :lower) == sig_hash
     end
   end
 
@@ -195,12 +195,12 @@ defmodule BloodyBtm2Test do
     block = block_hex |> Base.decode16!(case: :lower) |> decode_block() |> elem(0)
     tx = Enum.at(block.txs, 1)
 
-    %{id: txid} =
+    tx1 =
       tx
       |> map_tx()
       |> generate_tx()
 
-    assert txid ==
+    assert tx1.id ==
              Base.decode16!("a91d1069d5bdd3e8513f7de332599a5b83a85b07a397fa4f7a2280568cb8e034",
                case: :lower
              )
