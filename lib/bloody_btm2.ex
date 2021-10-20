@@ -279,9 +279,9 @@ defmodule BloodyBtm2 do
   def entry_id(%{_type: type} = data), do: entry_id(type, data)
 
   def entry_id(type, data) do
-    innerhash = :keccakf1600.sha3_256(write_for_hash(type, data))
+    innerhash = :crypto.hash(:sha3_256, write_for_hash(type, data))
     update = <<"entryid:">> <> get_typ(type) <> <<":">> <> innerhash
-    :keccakf1600.sha3_256(update)
+    :crypto.hash(:sha3_256, update)
   end
 
   defp get_typ(:issuance), do: "issuance1"
@@ -370,7 +370,7 @@ defmodule BloodyBtm2 do
 
   def sig_hashes(tx) do
     Enum.map(tx.input_ids, fn input_id ->
-      :keccakf1600.sha3_256(input_id <> tx.id)
+      :crypto.hash(:sha3_256, input_id <> tx.id)
     end)
   end
 
@@ -416,7 +416,7 @@ defmodule BloodyBtm2 do
       asset_version: 1,
       output_type: @original_output_type,
       commitment: commitment,
-      witness: []
+      witness: ""
     }
   end
 
